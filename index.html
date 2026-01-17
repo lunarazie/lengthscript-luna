@@ -1,0 +1,1771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>lunarazie's Script Timing Editor</title>
+<style>
+/*HELLO PEOPLE*/
+@font-face {
+  font-family: "Cloudberry Skies";
+  src: url("CloudberrySkies-Regular.ttf") format("truetype");
+}
+
+body {
+  margin: 0;
+  display: flex;
+  height: 100vh;
+  font-family: "Cloudberry Skies", monospace;
+  background: var(--bg, #e9e6ff);
+  color: var(--text, #000);
+}
+
+body.dark {
+  --bg: #0f0f14;
+  --text: #e6e6eb;
+  --panel: #181825;
+  --border: #303044;
+  --overlay: rgba(20, 21, 37, 0.4);
+}
+
+:root {
+  --bg: #e9e6ff;
+  --text: #000;
+  --panel: #d5cbff;
+  --border: #413463;
+  --overlay: rgba(24, 20, 37, 0.4);
+}
+
+:root {
+  --editor-font: "Cloudberry Skies", monospace;
+}
+
+#editor,
+#highlight,
+.line-numbers,
+.sidebar,
+.sidebar label,
+.sidebar input,
+.toolbar button,
+.main {
+  font-family: var(--editor-font);
+}
+
+/* Toolbar */
+.toolbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 42px;
+  background: var(--panel);
+  border-bottom: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  z-index: 3;}
+
+.toolbar button {
+  padding: 6px 10px;
+  border: 2px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: var(--editor-font);
+  color: var(--text);
+  background: transparent;
+  border: 2px solid var(--border);
+  cursor: auto;
+  border-radius: 4px;
+}
+
+button {
+  border: 2px solid var(--border);
+  background: var(--panel);
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+button:hover,
+label:hover {
+  filter: brightness(1.2);
+}
+
+/* Editor wrapper */
+.editor-wrapper {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: absolute;
+  width: auto;
+  height: auto;
+  margin-top: 42px;
+}
+
+.line-numbers {
+  flex-shrink: 1;
+  width: 56px;
+  padding: 16px 6px;
+  font-size: var(--editor-font-size);
+  line-height: var(--editor-line-height);
+  letter-spacing: var(--editor-letter-spacing);
+  text-align: right;
+  user-select: none;
+  color: var(--text);
+  border-right: 2px solid var(--border);
+  overflow-y: hidden;
+}
+
+/* Overlay highlighting */
+#highlight {
+  position: relative;
+  flex: 1;
+  padding: 16px;
+  font-size: var(--editor-font-size);
+  font-family: var(--editor-font);
+  letter-spacing: var(--editor-letter-spacing);
+  line-height: var(--editor-line-height);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  pointer-events: none; /* so we can type in the textarea */
+  background: transparent;
+  color: transparent;
+  z-index: 2;
+  overflow: hidden;
+  margin-right: 12px;
+  box-sizing: border-box;
+}
+
+#editor::-webkit-scrollbar,
+#highlight::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+#editor,
+#highlight {
+  scrollbar-width: none;
+  box-sizing: border-box;
+}
+
+/* Actual textarea */
+#editor {
+  position: relative; /* stays in normal flow */
+  flex: 1;
+  padding: 16px;
+  font-size: var(--editor-font-size);
+  font-family: var(--editor-font);
+  letter-spacing: var(--editor-letter-spacing);
+  line-height: var(--editor-line-height);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  pointer-events: auto;
+  background: transparent;
+  color: var(--text);
+  z-index: 1;
+  margin-right: 12px;
+  box-sizing: border-box;
+  overflow: auto;
+}
+
+.main {
+  display: flex;
+  flex: 1;
+  margin-top: 10px; /* toolbar height */
+  height: calc(100vh - 12px); /* fill the rest */
+}
+
+body, button, textarea {
+  font-family: var(--editor-font);
+}
+
+.sidebar {
+  width: 350px;
+  flex-shrink: 0;
+  padding: 16px;
+  background: var(--panel);
+  border-left: 2px solid var(--border);
+  overflow-y: none;
+  box-sizing: border-box;
+  z-index: 4;
+  translate: 0% -16px;
+  height: calc(100vh + 6px);
+}
+
+/* Styles the main dropdown box */
+#fontSelect option {
+  background: var(--panel);
+  color: var(--text);
+}
+
+.sidebar label {
+  display: inline-block;
+  font-family: var(--editor-font);
+}
+
+.editor-wrapper,
+.editor-stack {
+  flex: 1;
+  position: relative;
+}
+
+#editor,
+#highlight {
+  position: absolute;
+  inset: 0;
+  padding: 16px;
+  font-size: var(--editor-font-size);
+  font-family: var(--editor-font);
+  letter-spacing: var(--editor-letter-spacing);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+#editor {
+  background: transparent;
+  color: var(--text);
+  z-index: 1;
+  overflow-y: auto;
+  resize: none;
+  border: none;
+  outline: none;
+}
+
+#highlight {
+  pointer-events: none;
+  color: transparent;
+  z-index: 2;
+}
+
+#helpModal {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: auto;
+  height: auto;
+  background: var(--panel);
+  border: 2px solid var(--border);
+  padding: 16px;
+  z-index: 10;
+  font-family: var(--editor-font);
+  box-shadow: var(--border);
+  border-radius: 8px;
+}
+
+#helpModal button {
+  margin-top: 12px;
+  padding: 6px 10px;
+  border: 2px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  border-radius: 4px;
+  font-family: var(--editor-font);
+  color: var(--text)
+}
+
+.line-numbers {
+  width: 56px;
+  padding: 16px 6px;
+  text-align: right;
+  user-select: none;
+  color: var(--text);
+  border-right: 2px solid var(--border);
+}
+
+/* Only highlighted markers get visible color */
+.wpm { color: #ff6fae; font-weight: bold; }
+.rest { color: #7c82ff; font-weight: bold; }
+
+.wpm.invalid,
+body.rest-overflow .rest {
+  color: red; font-weight: bold;
+}
+
+.skip {
+  color: #4ea4f5;
+  opacity: 55%;
+  font-weight: bold;
+}
+
+.skip-marker {
+  color: #4ea4f5;
+  font-weight: bold;
+}
+
+.skip.invalid {
+  color: red;
+  font-weight: bold;
+}
+
+#gutter {
+  width: 48px;
+  padding: 16px 4px;
+  text-align: right;
+  color: #888;
+  user-select: none;
+  font-size: var(--editor-font-size);
+  line-height: var(--editor-line-height);
+  letter-spacing: var(--editor-letter-spacing);
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-box {
+  background: var(--panel);
+  color: var(--text);
+  padding: 20px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  min-width: 280px;
+  text-align: center;
+}
+
+.modal-box button {
+  margin: 6px;
+  padding: 6px 10px;
+}
+
+/* ts bro */
+#modalBackdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: var(--overlay);
+  z-index: 9;
+}
+
+/* SCroll bar */
+#scrollProgress {
+  position: absolute;
+  top: 70px;
+  bottom: 42px;
+  right: 360px;
+  width: 6px;
+  height: calc(100% - 80px);
+  background: var(--panel);
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 7;
+}
+
+#scrollThumb {
+  width: 100%;
+  height: 0%;
+  background: var(--border);
+  border-radius: 4px;
+  transition: height 0.05s linear;
+  z-index: 7;
+}
+
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <button onclick="insertWPM()">🎚️ + WPM</button>
+  <button onclick="insertRest()">🌃 + REST</button>
+  <button onclick="insertSkip()">⏭️ SKIP</button>
+  <button onclick="toggleTheme()">🌙 DARK</button>
+  <button onclick="importFile()">📂 IMPORT</button>
+  <button onclick="showExport()">💾 EXPORT</button>
+  <button onclick="showHelp()">❓ HELP</button>
+  <br>
+  <br>
+  <br>
+  <b><a href="https://lunarazie.carrd.co" target="_blank" style="color: var(--text);">lunarazie</a>'s Script Timing Editor v1.0</b>
+</div>
+
+<!-- SCROLL PROGRESS -->
+<div id="scrollProgress">
+  <div id="scrollThumb"></div>
+</div>
+
+<!-- WPM Modal -->
+<div id="wpmModal" class="modal hidden">
+  <div class="modal-box">
+    <h2>Set WPM</h2>
+    <input type="number" id="wpmInput" min="1" value="160" style="text-align: center; font-family: var(--editor-font); width: 33.33333%";>
+    <br><br>
+    <button onclick="confirmWPM()">Insert WPM</button>
+    <button onclick="hideWPM()">Nevermind</button>
+  </div>
+</div>
+
+<!-- REST Modal -->
+<div id="restModal" class="modal hidden">
+  <div class="modal-box">
+    <h2>Add REST (seconds)</h2>
+    <input type="number" id="restInput" min="0" max="120" step="0.01" value="0.5" style="text-align: center; font-family: var(--editor-font); width: 33.33333%">
+    <br><br>
+    <button onclick="confirmRest()">Insert Rest</button>
+    <button onclick="hideRest()">Nevermind</button>
+  </div>
+</div>
+
+<!-- HELP HELP M-->
+<div id="helpModal"  style="padding: 20px;" class="modal-box">
+  <div style="text-align: center; font-weight: bold; font-size: 1.6em;">HELP</div>
+  
+  <p>
+    <p style="text-align: center;">
+    This site is a tool that calculates the length of the script* in <b>WPM</b>, <b>REST</b>, and <b>SKIPS</b>.<br>
+    You can change the initial WPM in the settings.<br>
+    <b>WPM markers</b>, or words-per-minute, <span style="color: #ff6fae; font-family: monospace;"><b>::[wpm=...]</b></span> control the pacing of the script. The more, the merrier.<br>
+    <b>REST markers</b>, measured in seconds, <span style="color: #7c82ff; font-family: monospace;"><b>::[rest=...]</b></span> add interval pauses between lines.<br>
+    <b>SKIP markers</b>, <span style="color: #4ea4f5; font-family: monospace;"><b>::[skip=start/finish]</b></span> skips certain parts of text. These excludes words from being included in the calculation.<br><br>
+    [🎚️ + WPM] or (Ctrl+Enter) to set a new WPM, [🌃 + REST] or (Alt+Enter) to add a rest interval, [⏩ + SKIP] or (Shift+Enter) to add a skip.<br><br>
+    You can <b>IMPORT</b> any text file, and it'll calculate the reading time (from the initial WPM).<br>
+    You can also <b>EXPORT</b> the file as a .txt or its <b>CALC logs</b> to see its calculating process, either as a .txt or .csv file.<br>
+      <p style="text-align: center; font-size: 80%; margin-top: 8px;">
+        v1.0 - this site is made by lunarazie.<br>
+        this is not a school project, but a personal one. free to use.<br>
+        *This is only just an approximation using simple calculations. Actual length of your script will vary in real speech.<br><br>
+        <a href="https://lunarazie.carrd.co" target="_blank" style="color: var(--text);">my carrd</a>
+      </p>
+  </p>
+
+  <div style="text-align: center;">
+    <button onclick="hideHelp()">Close</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="editor-wrapper">
+
+    <div class="line-numbers" id="lines"></div>
+
+    <div class="editor-stack">
+      <div id="highlight"></div>
+      <textarea
+        id="editor"
+        spellcheck="true"
+        placeholder="Write or PASTE your script here!!!!"></textarea>
+    </div>
+
+  </div>
+
+<!-- SIDEBARRRR -->
+<div class="sidebar">
+  <h1 style="text-align: center;">Document Stats</h1>
+
+  <div style="display: flex; gap: 8px;">
+    <strong>Length:</strong>
+    <div id="time">0:00.000</div>
+    <div id="timerest", style="font-size: 80%; color: #7c82ff">(0.000s)</div>
+  </div>
+  <div style="display: flex; gap: 8px;">
+    <strong>Words:</strong>
+    <div id="words">0</div>
+    <div id="skippedWords", style="font-size: 80%; color: #4ea4f5">(0 skipped)</div>
+  </div>
+  <div style="display: flex; gap: 8px;">
+    <strong>Characters:</strong>
+    <div id="chars">0</div>
+  </div>
+  <div style="display: flex; gap: 8px;">
+    <strong style="color: #ff6fae;">WPM Markers:</strong>
+    <div id="wpmMarkers">0</div>
+  </div>
+  <div style="display: flex; gap: 8px;">
+    <strong style="color: #7c82ff">Rest Markers:</strong>
+    <div id="restMarkers">0</div>
+  </div>
+  <div style="display:flex; gap:8px;">
+  <strong style="color:#4ea4f5;">Skip Markers:</strong>
+  <div id="skipMarkers">0</div>
+</div>
+
+  <br>
+  <hr>
+
+    <h3>Settings</h3>
+      <label style="margin-bottom: 5px">
+        Initial WPM: 
+        <input type="number"
+              id="defaultWPMInput"
+              min="1"
+              style="width:33%">
+      </label><br>
+    <label>
+      Force Dark Mode:
+      <input type="checkbox" id="forceDarkInput"><br>
+    </label>
+
+    <label style="color: red">
+      Show Line Numbers:
+      <input type="checkbox" id="showLineNumbersInput">
+    </label>
+    <br>
+    <label>
+      Show Highlights:
+      <input type="checkbox" id="showHighlightsInput">
+    </label>
+
+    <br>
+        <h3>Editor Appearance</h3>
+      <label style="margin-bottom: 5px">
+        Font:
+        <select id="fontSelect", style="font-family: var(--editor-font)">
+          <option value="cloudberry">Cloudberry Skies</option>
+          <option value="mono">Monospace</option>
+          <option value="custom">Custom...</option>
+        </select>
+        <input type="file" id="fontUpload" accept=".ttf,.otf,.woff,.woff2" style="display:none" onclick="saveAppearance() ">
+      </label><br>
+      <label style="margin-bottom: 5px">
+        Font Size (px):
+        <input type="number" id="fontSizeInput" min="8" max="72", oninput="if (fontSizeInput.value >= 8 && fontSizeInput.value <= 72){saveAppearance()}">
+      </label>
+      <br>
+      <label style="margin-bottom: 5px">
+        Line Height (px):
+        <input type="number" id="lineHeightInput" min="8" max="100", onclick="if(lineHeightInput.value >= 8 && lineHeightInput.value <= 100){saveAppearance()}">
+      </label>
+      <br>
+      <label style="margin-bottom: 5px">
+        Letter Spacing (px):
+        <input type="number" id="letterSpacingInput" min="-2" max="10" step="0.1", onclick="if(letterSpacingInput.value >=-2 && letterSpacingInput.value <=10){saveAppearance()}">
+      </label>
+</div>
+
+<div id="exportModal" class="modal hidden">
+  <div class="modal-box">
+    <h2>EXPORT</h2>
+
+    <button onclick="exportPlainText()">💾 Save script as (.txt)</button>
+    <button onclick="saveScriptWithoutMarkers()">💾 Save w/o markers as (.txt)</button>
+
+    <hr>
+
+    <button onclick="exportCalcTXT()">📊 Calc log (.txt)</button>
+    <button onclick="exportCalcCSV()">📊 Calc log (.csv)</button>
+
+    <br><br>
+    <button onclick="hideExport()">Close</button>
+  </div>
+</div>
+
+<div id="modalBackdrop"></div>
+
+<script>
+//oh shit fUCK
+// STATS AND SETTINGS DECLARATION
+const editor = document.getElementById("editor");
+const highlight = document.getElementById("highlight");
+const timeDisplay = document.getElementById("time");
+const wordsDisplay = document.getElementById("words");
+const charsDisplay = document.getElementById("chars");
+let defaultWPM = 160;
+let forceDark = false;
+const REST_LIMIT = 2147483648;
+
+// Update Highlight ?!?!?
+let highlightScheduled = false;
+
+function scheduleHighlight() {
+  if (!showHighlightsInput.checked) return; // skip highlighting
+  if (highlightScheduled) return;
+
+  highlightScheduled = true;
+  requestAnimationFrame(() => {
+    updateHighlight();
+    highlightScheduled = false;
+  });
+}
+
+function updateHighlight() {
+  const lines = editor.value.split("\n");
+  let inSkip = false;
+
+  let html = "";
+
+  for (let rawLine of lines) {
+    let line = rawLine
+      .replace(/&/g,"&amp;")
+      .replace(/</g,"&lt;")
+      .replace(/>/g,"&gt;");
+
+    // --- SKIP MARKERS ---
+    if (/^::\[skip\s*=\s*start\]/i.test(rawLine)) {
+      inSkip = true;
+      html += `<span class="skip-marker">${line}</span><br>`;
+      continue;
+    }
+
+    if (/^::\[skip\s*=\s*finish\]/i.test(rawLine)) {
+      inSkip = false;
+      html += `<span class="skip-marker">${line}</span><br>`;
+      continue;
+    }
+
+    // --- NORMAL MARKERS ---
+    line = line
+      .replace(/(::\[wpm\s*=\s*([\d.]+)\])/gi, (m, p1, p2) =>
+        parseFloat(p2) === 0
+          ? `<span class="wpm invalid">${p1}</span>`
+          : `<span class="wpm">${p1}</span>`
+      )
+      .replace(/(::\[rest\s*=\s*([\d.]+)\])/gi, `<span class="rest">$1</span>`);
+
+    // --- APPLY SKIP VISUAL ---
+    if (inSkip) {
+      html += `<span class="skip">${line || "&nbsp;"}</span><br>`;
+    } else {
+      html += `${line || "&nbsp;"}<br>`;
+    }
+  }
+
+  highlight.innerHTML = html;
+  if(highlight.scrollTop !== editor.scrollTop) syncScroll();
+}
+
+// HELP
+
+const helpModal = document.getElementById("helpModal");
+
+function showHelp() {
+  document.getElementById("helpModal").style.display = "block";
+  document.getElementById("modalBackdrop").style.display = "block";
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    if (!helpModal.classList.contains("hidden")) {
+      e.preventDefault();
+      hideHelp();
+    }
+  }
+});
+
+function hideHelp() {
+  document.getElementById("helpModal").style.display = "none";
+  document.getElementById("modalBackdrop").style.display = "none";
+}
+
+/* ---------- Insert ---------- */
+function insertAtCursor(text) {
+  const start = editor.selectionStart;
+  const end = editor.selectionEnd;
+  editor.value = editor.value.slice(0,start) + text + editor.value.slice(end);
+  editor.selectionStart = editor.selectionEnd = start + text.length;
+
+  // schedule updates instead of instant
+  scheduleFastUpdates();
+  scheduleSlowUpdates();
+  editor.focus();
+}
+
+// WPM
+const wpmModal = document.getElementById("wpmModal");
+const restModal = document.getElementById("restModal");
+const wpmInput = document.getElementById("wpmInput");
+const restInput = document.getElementById("restInput");
+
+function insertWPM() {
+  wpmInput.value = defaultWPM; // prefill
+  wpmModal.classList.remove("hidden");
+  document.getElementById("modalBackdrop").style.display = "block";
+  wpmInput.focus();
+}
+
+function hideWPM() {
+  wpmModal.classList.add("hidden");
+  document.getElementById("modalBackdrop").style.display = "none";
+  insertAtCursor(``);
+}
+
+function confirmWPM() {
+  const val = parseFloat(wpmInput.value);
+  if (!isNaN(val) && val > 0) {
+    insertAtCursor(`\n::[wpm=${val}]\n`);
+    hideWPM();
+  } else {
+    alert("WPM cannot be nothing or less than nothing poopy\n")
+  }
+}
+
+wpmInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    confirmWPM();
+  }
+
+  if (e.key === "Escape") {
+    e.preventDefault();
+    hideWPM();
+  }
+});
+
+// REST
+function insertRest() {
+  restInput.value = 0.5; // default
+  restModal.classList.remove("hidden");
+  document.getElementById("modalBackdrop").style.display = "block";
+  restInput.focus();
+}
+
+function hideRest() {
+  restModal.classList.add("hidden");
+  document.getElementById("modalBackdrop").style.display = "none";
+  insertAtCursor(``);
+}
+
+function confirmRest() {
+  const val = parseFloat(restInput.value);
+  if (!isNaN(val) && val >= 0) {
+    insertAtCursor(`\n::[rest=${val}]\n`);
+    hideRest();
+  } else {
+    alert("Rest duration cannot be nothing or less than nothing poopy\n")
+  }
+}
+
+restInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    confirmRest();
+  }
+
+  if (e.key === "Escape") {
+    e.preventDefault();
+    hideRest();
+  }
+});
+
+// SKIP
+function insertSkip() {
+  const before = editor.value.slice(0, editor.selectionStart);
+  const lines = before.split("\n");
+
+  let inSkip = false;
+
+  for (const line of lines) {
+    if (/::\[skip\s*=\s*start\]/i.test(line)) inSkip = true;
+    if (/::\[skip\s*=\s*finish\]/i.test(line)) inSkip = false;
+  }
+
+  insertAtCursor(`\n::[skip=${inSkip ? "finish" : "start"}]\n`);
+}
+
+/* ---------- Stats ---------- */
+const MARKER_REGEX = /::\[\s*(wpm|rest|skip)\s*=\s*[^\]\n]*\]/gi; //fucker
+
+// CALCULATE TIME
+function calculateTime(text) {
+  let totalSeconds = 0;
+  let currentWPM = defaultWPM;
+  let inSkip = false;
+  const lines = text.split("\n");
+
+  for (let rawLine of lines) {
+    if (typeof rawLine !== "string") continue;
+
+    const line = rawLine.trim();
+
+    // --- SKIP MARKERS ---
+    if (/^::\[skip\s*=\s*start\]/i.test(line)) {
+      inSkip = true;
+      continue; // skip this line
+    }
+
+    if (/^::\[skip\s*=\s*finish\]/i.test(line)) {
+      inSkip = false;
+      continue; // skip this line
+    }
+
+    // --- WPM MARKERS ---
+    const wpmMatch = line.match(/^::\[wpm\s*=\s*([\d.]+)\]/i);
+    if (wpmMatch) {
+      const nextWPM = parseFloat(wpmMatch[1]);
+      if (!isFinite(nextWPM) || nextWPM <= 0) return Infinity;
+      currentWPM = nextWPM;
+      continue; // skip marker line
+    }
+
+    // --- REST MARKERS ---
+    const restMatch = line.match(/^::\[rest\s*=\s*([\d.]+)\]/i);
+    if (restMatch) {
+      const rest = parseFloat(restMatch[1]);
+      if (isFinite(rest) && rest > 0) totalSeconds += rest;
+      continue; // skip marker line
+    }
+
+    // --- SKIPPED LINES ---
+    if (inSkip) continue; // do NOT add skipped lines to timer
+
+    // --- IGNORE empty lines ---
+    if (!line) continue;
+
+    // --- WORDS ---
+    const words = line.split(/\s+/).filter(Boolean).length;
+    totalSeconds += (words / currentWPM) * 60;
+  }
+
+  return totalSeconds;
+}
+
+// CALCULATE REST TIME
+function calculateTotalRest(text) {
+  let total = 0;
+
+  const restRegex = /::\[rest\s*=\s*([\d.]+)\]/gi;
+  let match;
+
+  while ((match = restRegex.exec(text)) !== null) {
+    const value = parseFloat(match[1]);
+    if (!isNaN(value) && value > 0) {
+      total += value;
+    }
+  }
+
+  return total;
+}
+
+// UPDATE REST TIME
+function updateRestTime() {
+  const MAX_REST = 2 ** 31; // yeah
+  const restSeconds = calculateTotalRest(editor.value);  
+
+  // Limit
+  if (restSeconds > MAX_REST) {
+    document.getElementById("timerest").textContent = "(above its limits...!)";
+    document.getElementById("timerest").style.color = "red";
+    return;
+  }
+
+  // Normal Case
+  document.getElementById("timerest").textContent = restSeconds > 0 ? `(${restSeconds.toFixed(3)}s rest)` : "";
+  document.getElementById("timerest").style.color = "#7c82ff";
+  updateRestOverflowState();
+}
+
+// CHECK IF REST OVERFLOW STUPID ASS
+function updateRestOverflowState() {
+  const totalRest = calculateTotalRest(editor.value);
+
+  if (totalRest >= REST_LIMIT) {
+    document.body.classList.add("rest-overflow");
+  } else {
+    document.body.classList.remove("rest-overflow");
+  }
+}
+
+// FORMAT TIME
+function formatTime(sec){
+  const m = Math.floor(sec/60);
+  const s = sec%60;
+  return `${m}:${s.toFixed(3).padStart(6,"0")}`;
+}
+
+// UPDATE TIME
+function updateTime() {
+  const MAX_MINUTES = 2 ** 31; // though, it can go higher but 2147483648 minutes is the limit for practicality
+  const WARNING_MINUTES = 2 ** 16; // anything above 65536 minutes is unusual for practicality
+  const seconds = calculateTime(editor.value);
+
+  // Neverending case (WPM = 0)
+  if (seconds === Infinity) {
+    timeDisplay.textContent = "neverending...";
+    timeDisplay.style.color = "red";
+    return;
+  }
+
+  const minutes = seconds / 60;
+
+  // Hard overflow protection
+  if (minutes > MAX_MINUTES) {
+    timeDisplay.textContent = "above its limits...!";
+    timeDisplay.style.color = "red";
+    return;
+  }
+
+  // Warning overflow
+  if (minutes > WARNING_MINUTES) {
+    timeDisplay.textContent = formatTime(seconds);
+    timeDisplay.style.color = "yellow";
+    return;
+  }
+
+  // Normal case
+  timeDisplay.textContent = formatTime(seconds);
+  timeDisplay.style.color = "";
+}
+
+// UPDATE WORDS
+function updateWords() {
+  // remove markers (wpm, rest, skip) regardless of spaces
+  const text = editor.value.replace(/::\[\s*(wpm|rest|skip)\s*=\s*.*?\]/gi, ' ').trim();
+
+  // count words
+  const words = text.split(/\s+/).filter(Boolean).length;
+  wordsDisplay.textContent = words;
+}
+// UPDATE CHARS
+function updateChars() {
+  // remove markers before counting characters
+  const text = editor.value.replace(/::\[\s*(wpm|rest|skip)\s*=\s*.*?\]/gi, ' ');
+  const chars = text.length;
+  charsDisplay.textContent = chars;
+}
+
+// UPDATE MARKERS
+function updateMarkerCounts() {
+  const text = editor.value;
+
+  const wpm = text.match(/::\[\s*wpm\s*=\s*[^\]]+\]/gi) || [];
+  const rest = text.match(/::\[\s*rest\s*=\s*[^\]]+\]/gi) || [];
+  const skip = text.match(/::\[\s*skip\s*=\s*(start|finish)\s*\]/gi) || [];
+
+  document.getElementById("wpmMarkers").textContent = wpm.length;
+  document.getElementById("restMarkers").textContent = rest.length;
+  document.getElementById("skipMarkers").textContent = skip.length;
+}
+
+// UPDATE SKIPPED WORDS
+function updateSkippedWords() {
+  const lines = editor.value.split(/\r?\n/);
+  const ranges = getSkipRanges(lines);
+
+  let skipped = 0;
+
+  ranges.forEach(([start, end]) => {
+    for (let i = start + 1; i < end; i++) {
+      const raw = lines[i];
+      if (!raw) continue;
+
+      const line = raw.trim();
+      if (!line) continue;
+      if (MARKER_REGEX.test(line)) continue;
+
+      skipped += line.split(/\s+/).filter(Boolean).length;
+    }
+  });
+
+  document.getElementById("skippedWords").textContent = skipped > 0 ? `(${skipped} skipped)` : "";
+}
+
+// SKIP TIME
+function getSkipRanges(lines) {
+  if (!Array.isArray(lines)) return [];
+
+  const ranges = [];
+  let start = null;
+
+  lines.forEach((line, i) => {
+    if (typeof line !== "string") return;
+
+    const t = line.trim();
+
+    if (/^::\[\s*skip\s*=\s*start\s*\]/i.test(t)) {
+      if (start === null) start = i;
+      return;
+    }
+
+    if (/^::\[\s*skip\s*=\s*finish\s*\]/i.test(t)) {
+      if (start !== null) {
+        ranges.push([start, i]);
+        start = null;
+      }
+    }
+  });
+
+  return ranges;
+}
+
+/* ---------- Settings ---------- */
+const defaultWPMInput = document.getElementById("defaultWPMInput");
+const forceDarkInput = document.getElementById("forceDarkInput");
+
+const showLineNumbersInput = document.getElementById("showLineNumbersInput");
+const showHighlightsInput = document.getElementById("showHighlightsInput");
+
+showLineNumbersInput.addEventListener("change", () => {
+  toggleLineNumbers();
+  saveSettings();
+});
+
+showHighlightsInput.addEventListener("change", () => {
+  toggleHighlights();
+  saveSettings();
+});
+
+forceDarkInput.addEventListener("change", () => {
+  applySettings();
+  saveSettings();
+});
+
+defaultWPMInput.addEventListener("change", () => {
+  saveSettings();
+});
+
+// TOGGLE THESE GODDAMN LINE NUMBERS THEY PISS ME THE FUCK OFF
+function toggleLineNumbers() {
+  updateLineNumbers(); // force redraw
+}
+
+function toggleHighlights() {
+  if (showHighlightsInput.checked) {
+    highlight.style.display = "block";
+  } else {
+    highlight.style.display = "none";
+  }
+}
+
+// SAVE SETTINGS
+function saveSettings() {
+  defaultWPM = parseFloat(defaultWPMInput.value) || 160;
+  forceDark = forceDarkInput.checked;
+  toggleLine = showLineNumbersInput.checked;
+  toggleMarks = showHighlightsInput.checked;
+
+  localStorage.setItem(
+    "editorSettings",
+    JSON.stringify({ defaultWPM, forceDark, toggleLine, toggleMarks })
+  );
+
+  updateFuckingEverything();
+}
+
+// RE-TIME
+function reTime(){
+  defaultWPM = parseFloat(defaultWPMInput.value) || 160;
+  updateTime();
+  updateWords();
+  updateChars();
+  updateMarkerCounts();
+  updateSkippedWords();
+  updateRestTime();
+  updateRestOverflowState();
+  localStorage.setItem("editorSettings", JSON.stringify({defaultWPM, forceDark, toggleLine, toggleMarks}));
+}
+
+// UPDATE EVERYTHING
+function updateFuckingEverything() {
+  if (showHighlightsInput.checked) updateHighlight();
+  if (showLineNumbersInput.checked) updateLineNumbers();
+  reTime();
+}
+
+// APPLY SETTINGS
+function applySettings(){
+  if(forceDark) document.body.classList.add("dark");
+  else document.body.classList.remove("dark");
+}
+
+/* ---------- Theme ---------- */
+function toggleTheme(){
+  forceDark = !forceDark;
+  applySettings();
+}
+
+/* ---------- Autosave & load ---------- */
+editor.addEventListener("input", () => {
+  scheduleFastUpdates();
+  scheduleSlowUpdates();
+  localStorage.setItem("scriptContent", editor.value);
+});
+
+window.addEventListener("load", () => {
+  const savedText = localStorage.getItem("scriptContent");
+  const settings = JSON.parse(localStorage.getItem("editorSettings") || "{}");
+
+  if (savedText) editor.value = savedText;
+
+  // restore values safely
+  defaultWPM = settings.defaultWPM ?? defaultWPM;
+  forceDark = settings.forceDark ?? false;
+  toggleLine = settings.toggleLine ?? true;
+  toggleMarks = settings.toggleMarks ?? true;
+
+  // restore UI state
+  defaultWPMInput.value = defaultWPM;
+  forceDarkInput.checked = forceDark;
+  showLineNumbersInput.checked = toggleLine;
+  showHighlightsInput.checked = toggleMarks;
+
+  // APPLY the effects
+  toggleLineNumbers();
+  toggleHighlights();
+  applySettings();
+
+  updateFuckingEverything();
+});
+
+function scheduleFastUpdates() {
+  scheduleHighlight();
+}
+
+// SLOW UPDATES
+let slowTimer = null;
+
+function scheduleSlowUpdates() {
+  clearTimeout(slowTimer);
+  slowTimer = setTimeout(runSlowUpdates, 30);
+}
+
+function runSlowUpdates() {
+  reTime();                // time, rest, skipped
+  updateMarkerCounts();
+  updateChars();
+  updateWords();
+  updateSkippedWords();
+  updateLineNumbers();
+}
+
+/* --------- Line Numbers ----------- */
+
+const linesEl = document.getElementById("lines");
+
+function updateLineNumbers() {
+  const lines = editor.value.split("\n");
+  let html = "";
+  const style = getComputedStyle(editor);
+  const lineHeight = parseFloat(style.lineHeight) || 20;
+  const font = style.font;
+  const editorWidth = editor.clientWidth - 16;
+
+  const showNumbers = showLineNumbersInput.checked;
+
+  lines.forEach((lineText, i) => {
+    if (!showNumbers) {
+      html += "<br>"; // preserve spacing, no numbers
+      return;
+    }
+
+    // create a temporary div to measure visual height
+    const div = document.createElement("div");
+    div.style.position = "absolute";
+    div.style.visibility = "hidden";
+    div.style.width = editorWidth + "px";
+    div.style.font = font;
+    div.style.whiteSpace = "pre-wrap";
+    div.style.wordWrap = "break-word";
+    div.textContent = lineText || " ";
+    document.body.appendChild(div);
+
+    const visualLines = Math.ceil(div.offsetHeight / lineHeight);
+    document.body.removeChild(div);
+
+    // Add the line number once, then blank lines for wrapped lines
+    html += (i + 1) + "<br>";
+    for (let j = 1; j < visualLines; j++) html += "<br>";
+  });
+
+  linesEl.innerHTML = html;
+}
+
+// LINE NUMBERS
+editor.addEventListener("input", updateLineNumbers);
+
+function getLineCount(text) {
+  return text.split("\n").length;
+}
+
+function renderLineNumbers(text) {
+
+  const lines = text.split("\n");
+  return lines.map((_, i) =>
+    String(i + 1).padStart(4, "0")
+  ).join("\n");
+}
+
+// editor style cache
+let editorStyleCache = null;
+
+function refreshEditorStyleCache() {
+  const s = getComputedStyle(editor);
+  editorStyleCache = {
+    font: s.font,
+    lineHeight: parseFloat(s.lineHeight)
+  };
+}
+
+refreshEditorStyleCache();
+window.addEventListener("resize", refreshEditorStyleCache);
+
+// SYNC SCROLL
+function syncScroll() {
+  highlight.scrollTop = editor.scrollTop;
+  linesEl.scrollTop = editor.scrollTop;
+}
+
+/* ---------- Import ---------- */
+function importFile(){
+  const input = document.createElement("input");
+  input.type="file";
+  input.accept=".txt,.md,.script";
+  input.onchange = e=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      editor.value = reader.result;
+      updateFuckingEverything();
+      localStorage.setItem("scriptContent", editor.value);
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+/* ---------- NEW EXPORT ------------- */
+function showExport() {
+  document.getElementById("exportModal").classList.remove("hidden");
+  document.getElementById("modalBackdrop").style.display = "block";
+}
+
+function hideExport() {
+  document.getElementById("exportModal").classList.add("hidden");
+  document.getElementById("modalBackdrop").style.display = "none";
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    const modal = document.getElementById("exportModal");
+    if (!modal.classList.contains("hidden")) {
+      e.preventDefault();
+      hideExport();
+    }
+  }
+});
+
+function download(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// TEXT
+function exportPlainText() {
+  const blob = new Blob([editor.value], { type: "text/plain" });
+  download(blob, "script.txt");
+}
+
+// TEXT no MARKERS
+function saveScriptWithoutMarkers() {
+  const lines = editor.value.split(/\r?\n/);
+
+  const cleaned = lines.map(line => {
+    // Remove any marker anywhere in the line
+    // This regex handles = and optional spaces around = and value
+    return line.replace(/::\[\s*(wpm|rest|skip)\s*=\s*.*?\]/gi, '').trimEnd();
+  });
+
+  // Join lines back with \n so the number of lines stays the same
+  const output = cleaned.join('\n');
+
+  const blob = new Blob([output], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "script-no-markers.txt";
+  a.click();
+
+  URL.revokeObjectURL(url);
+}
+
+// LOG
+function exportCalcTXT() {
+  const { totalSeconds, log } = calculateWithLog(editor.value);
+
+  const output =
+    log.join("\n") +
+    `\n\nTotal words: ${wordsDisplay.textContent}\n` +
+    formatTime(totalSeconds);
+
+  download(new Blob([output], { type: "text/plain" }), "script-calculation.txt");
+}
+
+/// CSV
+
+  // rows.push("line,marker,value,value2");
+
+  //  marker = 0   -> WORDS
+  //   value = #words
+  // value-2 = seconds.000 / 0 (if SKIP)
+
+  //  marker = 1   -> WPM
+  //   value = msPerWord.0000000000
+  // value-2 = 0
+
+  //  marker = 2   -> REST
+  //   value = rest.000
+  // value-2 = 0
+
+  //  marker = 3.1 -> SKIP START
+  //   value = 0
+  // value-2 = 0
+
+  //  marker = 3.0 -> SKIP END
+  //   value = 0
+  // value-2 = 0
+
+function exportCalcCSV() {
+  const lines = editor.value.split("\n");
+  let currentWPM = defaultWPM;
+  let inSkip = false;
+
+  const rows = [];
+
+  // Initial WPM
+  const msPerWordInit = 60000 / defaultWPM;
+  rows.push(`0,1,${msPerWordInit.toFixed(10)},0`);
+
+  lines.forEach((rawLine, index) => {
+    const lineNo = index + 1;
+    const line = rawLine.trim();
+
+    // --- SKIP START ---
+    if (/^::\[skip\s*=\s*start\]/i.test(line)) {
+      inSkip = true;
+      rows.push(`${lineNo},3.1,0,0`);
+      return;
+    }
+
+    // --- SKIP FINISH ---
+    if (/^::\[skip\s*=\s*finish\]/i.test(line)) {
+      inSkip = false;
+      rows.push(`${lineNo},3.0,0,0`);
+      return;
+    }
+
+    // --- WPM ---
+    const wpmMatch = line.match(/^::\[wpm\s*=\s*([\d.]+)\]/i);
+    if (wpmMatch) {
+      currentWPM = parseFloat(wpmMatch[1]);
+      const msPerWord = 60000 / currentWPM;
+      rows.push(`${lineNo},1,${msPerWord.toFixed(10)},0`);
+      return;
+    }
+
+    // --- REST ---
+    const restMatch = line.match(/^::\[rest\s*=\s*([\d.]+)\]/i);
+    if (restMatch) {
+      const rest = parseFloat(restMatch[1]);
+      rows.push(`${lineNo},2,${rest.toFixed(3)},0`);
+      return;
+    }
+
+    // --- WORDS ---
+    const words = line.split(/\s+/).filter(Boolean).length;
+
+    if (inSkip) {
+      // skipped text → zero seconds
+      rows.push(`${lineNo},0,${words},0`);
+    } else {
+      const seconds = (words / currentWPM) * 60;
+      rows.push(`${lineNo},0,${words},${seconds.toFixed(10)}`);
+    }
+  });
+
+  download(
+    new Blob([rows.join("\n")], { type: "text/csv" }),
+    "script-calculation.csv"
+  );
+}
+
+// --- CSV EXPORT WITH SKIP SUPPORT ---
+function exportCalcCSV() {
+  const lines = editor.value.split("\n");
+  let currentWPM = defaultWPM;
+  let inSkip = false;
+
+  const rows = [];
+
+  // initial WPM
+  const msPerWordInit = 60000 / defaultWPM;
+  rows.push(`0,1,${msPerWordInit.toFixed(10)},0`);
+
+  lines.forEach((rawLine, index) => {
+    const lineNo = index + 1;
+    const line = rawLine.trim();
+
+    // SKIP markers
+    if (/^::\[skip\s*=\s*start\]/i.test(line)) {
+      inSkip = true;
+      rows.push(`${lineNo},3.1,0,0`);
+      return;
+    }
+    if (/^::\[skip\s*=\s*finish\]/i.test(line)) {
+      inSkip = false;
+      rows.push(`${lineNo},3.0,0,0`);
+      return;
+    }
+
+    // WPM marker
+    const wpmMatch = line.match(/^::\[wpm\s*=\s*([\d.]+)\]/i);
+    if (wpmMatch) {
+      currentWPM = parseFloat(wpmMatch[1]);
+      rows.push(`${lineNo},1,${(60000 / currentWPM).toFixed(10)},0`);
+      return;
+    }
+
+    // REST marker
+    const restMatch = line.match(/^::\[rest\s*=\s*([\d.]+)\]/i);
+    if (restMatch) {
+      const rest = parseFloat(restMatch[1]);
+      rows.push(`${lineNo},2,${rest.toFixed(3)},0`);
+      return;
+    }
+
+    // ignore empty lines
+    if (!line) return;
+
+    // spoken text
+    const words = line.split(/\s+/).filter(Boolean).length;
+    if (inSkip) {
+      rows.push(`${lineNo},0,${words},0`);
+    } else {
+      const seconds = (words / currentWPM) * 60;
+      rows.push(`${lineNo},0,${words},${seconds.toFixed(10)}`);
+    }
+  });
+
+  download(
+    new Blob([rows.join("\n")], { type: "text/csv" }),
+    "script-calculation.csv"
+  );
+}
+
+// --- TXT CALC LOG WITH SKIP SUPPORT ---
+function calculateWithLog(text) {
+  let currentWPM = defaultWPM;
+  let totalSeconds = 0;
+  let inSkip = false;
+  const log = [];
+
+  const lines = text.split("\n");
+
+  log.push(`[ Initial ] Set WPM = ${currentWPM.toFixed(1)}`);
+
+  lines.forEach((rawLine, index) => {
+    const lineNumber = index + 1;
+    const line = rawLine.trim();
+
+    // SKIP markers
+    if (/^::\[skip\s*=\s*start\]/i.test(line)) {
+      inSkip = true;
+      log.push(`[Line ${String(lineNumber).padStart(4,"0")}] SKIP = Start`);
+      return;
+    }
+    if (/^::\[skip\s*=\s*finish\]/i.test(line)) {
+      inSkip = false;
+      log.push(`[Line ${String(lineNumber).padStart(4,"0")}] SKIP = Finish`);
+      return;
+    }
+
+    // WPM marker
+    const wpmMatch = line.match(/^::\[wpm\s*=\s*([\d.]+)\]/i);
+    if (wpmMatch) {
+      currentWPM = parseFloat(wpmMatch[1]);
+      log.push(`[Line ${String(lineNumber).padStart(4,"0")}] Set WPM = ${currentWPM.toFixed(2)}`);
+      return;
+    }
+
+    // REST marker
+    const restMatch = line.match(/^::\[rest\s*=\s*([\d.]+)\]/i);
+    if (restMatch) {
+      const rest = parseFloat(restMatch[1]);
+      totalSeconds += rest;
+      log.push(`[Line ${String(lineNumber).padStart(4,"0")}] Added REST = ${rest.toFixed(2)} s`);
+      return;
+    }
+
+    // ignore empty lines
+    if (!line) return;
+
+    const words = line.split(/\s+/).filter(Boolean).length;
+    if (inSkip) {
+      log.push(`[Line ${String(lineNumber).padStart(4,"0")}] ${words} words → skipped`);
+    } else {
+      const seconds = (words / currentWPM) * 60;
+      totalSeconds += seconds;
+      log.push(`[Line ${String(lineNumber).padStart(4,"0")}] ${words} words → ${seconds.toFixed(2)} s`);
+    }
+  });
+
+  return { totalSeconds, log };
+}
+
+// --- EXPORT TXT ---
+function exportCalculation() {
+  const { totalSeconds, log } = calculateWithLog(editor.value);
+
+  const output =
+    log.join("\n") +
+    `\n\nTotal words: ${wordsDisplay.textContent}\nTotal time: ${formatTime(totalSeconds)}`;
+
+  const blob = new Blob([output], { type: "text/plain" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "script-calculation.txt";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// stupid fucking error sometimes
+if (document.querySelectorAll("#editor").length !== 1) {
+  console.error("ERROR: Duplicate #editor elements detected ahhh motherfucker");
+}
+
+/* ------------- FONTS AND STUFF -------------- */
+
+// ELEMENTS
+const fontSelect = document.getElementById("fontSelect");
+const fontUpload = document.getElementById("fontUpload");
+const fontSizeInput = document.getElementById("fontSizeInput");
+const lineHeightInput = document.getElementById("lineHeightInput");
+const letterSpacingInput = document.getElementById("letterSpacingInput");
+
+// DEFAULT VALUES
+let appearance = {
+  font: '"Cloudberry Skies", monospace',
+  fontSize: 14,
+  lineHeight: 20,
+  letterSpacing: 0
+};
+
+// APPLY TO CSS
+function applyAppearance(a = appearance) {
+  document.documentElement.style.setProperty("--editor-font", a.font);
+  document.documentElement.style.setProperty("--editor-font-size", a.fontSize + "px");
+  document.documentElement.style.setProperty("--editor-line-height", a.lineHeight + "px");
+  document.documentElement.style.setProperty("--editor-letter-spacing", a.letterSpacing + "px");
+  document.documentElement.style.setProperty(
+  "--editor-font",
+  appearance.font);
+
+  updateLineNumbers();
+}
+
+// SAVE TO LOCALSTORAGE
+function saveAppearance() {
+  localStorage.setItem("editorAppearance", JSON.stringify(appearance));
+  applyAppearance();
+}
+
+// FONT SELECT DISPLAY
+function setFont(font, selectValue) {
+  appearance.font = font;
+  fontSelect.value = selectValue;
+  saveAppearance();
+  saveSettings();
+}
+
+// FONT SELECT FUNCTION
+fontSelect.addEventListener("change", () => {
+  if (fontSelect.value === "cloudberry") {
+    setFont("Cloudberry Skies", "cloudberry");
+  }
+
+  if (fontSelect.value === "mono") {
+    setFont("monospace", "mono");
+  }
+
+  if (fontSelect.value === "custom") {
+    fontUpload.click();
+  }
+});
+
+// SCROLL PROGRESS
+function updateScrollProgress() {
+  const maxScroll = editor.scrollHeight - editor.clientHeight;
+  const progress = maxScroll <= 0 ? 1 : editor.scrollTop / maxScroll;
+
+  document.getElementById("scrollThumb").style.height =
+    `${Math.min(progress * 100, 100)}%`;
+}
+
+editor.addEventListener("scroll", () => {
+  syncScroll();
+  updateScrollProgress();
+});
+
+editor.addEventListener("input", () => {
+  syncScroll();
+  updateScrollProgress();
+});
+
+// FONT APPEARANCE
+fontSizeInput.addEventListener("input", () => {
+  appearance.fontSize = parseFloat(fontSizeInput.value) || 14;
+  if (appearance.fontSize >= 8 && appearance.fontSize <= 72) saveAppearance();
+});
+
+lineHeightInput.addEventListener("input", () => {
+  appearance.lineHeight = parseFloat(lineHeightInput.value);
+  if (appearance.lineHeight >= 8 && appearance.lineHeight <= 100) saveAppearance();
+});
+
+letterSpacingInput.addEventListener("input", () => {
+  appearance.letterSpacing = parseFloat(letterSpacingInput.value) || 0;
+  if (appearance.letterSpacing >= -2 && appearance.letterSpacing <= 10) saveAppearance();
+});
+
+// RELOAD
+window.addEventListener("load", () => { // executes, debug message showed up
+
+  // Restore editor content
+  const savedScript = localStorage.getItem("scriptContent");
+  if (savedScript) editor.value = savedScript;
+
+  // Restore appearance
+  const savedAppearance = JSON.parse(
+    localStorage.getItem("editorAppearance") || "{}"
+  );
+
+  if (savedAppearance.font !== undefined)
+    appearance.font = savedAppearance.font;
+
+  if (savedAppearance.fontSize !== undefined)
+    appearance.fontSize = savedAppearance.fontSize;
+
+  if (savedAppearance.lineHeight !== undefined)
+    appearance.lineHeight = savedAppearance.lineHeight;
+
+  if (savedAppearance.letterSpacing !== undefined)
+    appearance.letterSpacing = savedAppearance.letterSpacing;
+
+  // Sync inputs
+  fontSizeInput.value = appearance.fontSize;
+  lineHeightInput.value = appearance.lineHeight;
+  letterSpacingInput.value = appearance.letterSpacing;
+
+  // Sync font selector
+  if (appearance.font.includes("Cloudberry")) fontSelect.value = "cloudberry";
+  else if (appearance.font === "monospace") fontSelect.value = "mono";
+  else fontSelect.value = "custom";
+  
+  if (fontSelect.value === "custom") {
+  loadFontFromDB("UserCustomFont").then(buffer => {
+    if (!buffer) return;
+    registerFont(buffer);
+  });
+}
+  applyAppearance();
+  updateFuckingEverything();
+});
+
+// Custom Font Upload (i think this works)
+const DB_NAME = "FontStorage";
+const STORE_NAME = "fonts";
+
+function openDB() { // executes, debug message showed up
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+
+    req.onupgradeneeded = () => {
+      req.result.createObjectStore(STORE_NAME);
+    };
+
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function saveFontToDB(name, buffer) { // may get executed, debug message showed up
+  const db = await openDB();
+  const tx = db.transaction(STORE_NAME, "readwrite");
+  tx.objectStore(STORE_NAME).put(buffer, name);
+}
+
+async function loadFontFromDB(name) { // may get executed, debug message showed up
+  const db = await openDB();
+  const tx = db.transaction(STORE_NAME, "readonly");
+  return new Promise(resolve => {
+    const req = tx.objectStore(STORE_NAME).get(name);
+    req.onsuccess = () => resolve(req.result || null);
+  });
+}
+
+fontUpload.addEventListener("change", async () => { // may get executed, debug message showed up
+  const file = fontUpload.files[0];
+  if (!file) return;
+
+  const buffer = await file.arrayBuffer();
+  await saveFontToDB("UserCustomFont", buffer);
+
+  registerFont(buffer);
+  setFont('"UserCustomFont", monospace', "custom");
+});
+
+function registerFont(buffer) { // executes, debug message showed up
+  const blob = new Blob([buffer], { type: "font/ttf" });
+  const url = URL.createObjectURL(blob);
+
+  const style = document.createElement("style");
+  style.textContent = `
+    @font-face {
+      font-family: "UserCustomFont";
+      src: url("${url}");
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+/* ------------ VISUAL PROBLEMS FIXES ------------ */
+// sync overlay size
+function syncOverlaySize() {
+  const style = getComputedStyle(editor);
+
+  highlight.style.width = style.width;
+  highlight.style.height = style.height;
+  highlight.style.padding = style.padding;
+}
+
+syncOverlaySize();
+
+window.addEventListener("resize", syncOverlaySize);
+editor.addEventListener("input", syncOverlaySize);
+
+/* -------- Key Combos -------- */
+// ADD WPM OR REST MARKER
+editor.addEventListener("keydown", (e) => {
+  // Ctrl + Enter → WPM
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+    e.preventDefault();
+    insertWPM();
+  }
+
+  // Alt + Enter → REST
+  if (e.altKey && e.key === "Enter") {
+    e.preventDefault(); // stop newline
+    insertRest();
+    return;
+  }
+});
+
+// SHIFT + ENTER → TOGGLE SKIP MARKER
+editor.addEventListener("keydown", (e) => {
+  if (e.shiftKey && e.key === "Enter") {
+    e.preventDefault();
+    insertSkip();
+  }
+});
+</script>
+</body>
+</html>
