@@ -392,7 +392,7 @@ body.rest-overflow .rest {
   <br>
   <br>
   <br>
-  <b><a href="https://lunarazie.carrd.co" target="_blank" style="color: var(--text);">lunarazie</a>'s Script Timing Editor v1.01</b>
+  <b><a href="https://lunarazie.carrd.co" target="_blank" style="color: var(--text);">lunarazie</a>'s Script Timing Editor v1.11</b>
 </div>
 
 <!-- SCROLL PROGRESS -->
@@ -412,11 +412,43 @@ body.rest-overflow .rest {
 </div>
 
 <!-- REST Modal -->
-<div id="restModal" class="modal hidden">
+<div id="restModal" class="modal hidden" tabindex="-1">
   <div class="modal-box">
-    <h2>Add REST (seconds)</h2>
-    <input type="number" id="restInput" min="0" max="120" step="0.01" value="0.5" style="text-align: center; font-family: var(--editor-font); width: 33.33333%">
-    <br><br>
+    <h2 id="restModalTitle">Add REST (seconds)</h2>
+
+    <!-- Seconds -->
+    <div id="restSecondsGroup">
+      <input
+        type="number"
+        id="restInput"
+        min="0"
+        max="120"
+        step="0.01"
+        value="0.5"
+        style="text-align:center; font-family:var(--editor-font); width:33.33333%"
+      >
+    </div>
+
+    <!-- Beats (hidden) -->
+    <div id="restBeatsGroup" style="display:none">
+      <label>
+        BPM<br>
+        <input type="number" id="restBPM" style="width:33%">
+      </label>
+      <br><br>
+      <label>
+        Beats<br>
+        <input type="number" id="restBeatsInput" min="0" max="256" step="0.25" value="4" style="width:33%">
+      </label>
+    </div>
+
+    <br>
+    <div>
+      Advanced Mode
+      <input type="checkbox" id="restModalAdvanced">
+    </div>
+
+    <br>
     <button onclick="confirmRest()">Insert Rest</button>
     <button onclick="hideRest()">Nevermind</button>
   </div>
@@ -437,7 +469,7 @@ body.rest-overflow .rest {
     You can <b>IMPORT</b> any text file, and it'll calculate the reading time (from the initial WPM).<br>
     You can also <b>EXPORT</b> the file as a .txt or its <b>CALC logs</b> to see its calculating process, either as a .txt or .csv file.<br>
       <p style="text-align: center; font-size: 80%; margin-top: 8px;">
-        v1.01 - this site is made by lunarazie.<br>
+        v1.11 - this site is made by lunarazie.<br>
         this is not a school project, but a personal one. free to use.<br>
         *This is only just an approximation using simple calculations. Actual length of your script will vary in real speech.<br><br>
         <a href="https://lunarazie.carrd.co" target="_blank" style="color: var(--text);">my carrd</a>
@@ -721,8 +753,67 @@ function insertRest() {
   restInput.value = 0.5; // default
   restModal.classList.remove("hidden");
   document.getElementById("modalBackdrop").style.display = "block";
-  restInput.focus();
+  restModal.focus();
 }
+
+function confirmRest() {
+  let secondsString;
+
+  if (restAdvanced.checked) {
+    const bpm = parseFloat(restBPM.value);
+    const beats = parseFloat(document.getElementById("restBeatsInput").value);
+
+    if (!bpm || bpm <= 0) {
+      alert("Rest duration cannot be forever-never poopy");
+      return;
+    }
+
+    if (!beats || beats <= 0) {
+      alert("Rest duration cannot be nothing or less than nothing poopy");
+      return;
+    }
+
+    const seconds = (60 / bpm) * beats;
+
+    secondsString = seconds
+      .toFixed(10)
+      .replace(/\.?0+$/, "");
+
+  } else {
+    const raw = document.getElementById("restInput").value.trim();
+    const seconds = parseFloat(raw);
+
+    if (!seconds || seconds <= 0) {
+      alert("Rest duration cannot be nothing or less than nothing poopy");
+      return;
+    }
+
+    secondsString = raw;
+  }
+
+  insertAtCursor(`\n::[rest=${secondsString}]\n`);
+  hideRest();
+}
+
+// Advanced Mode
+const restAdvanced = document.getElementById("restModalAdvanced");
+const restSecondsGroup = document.getElementById("restSecondsGroup");
+const restBeatsGroup = document.getElementById("restBeatsGroup");
+const restTitle = document.getElementById("restModalTitle");
+const restBPM = document.getElementById("restBPM");
+
+restAdvanced.addEventListener("change", () => {
+  if (restAdvanced.checked) {
+    restSecondsGroup.style.display = "none";
+    restBeatsGroup.style.display = "block";
+    restTitle.textContent = "Add REST (beats)";
+    restBPM.value = defaultWPM;
+  } else {
+    restSecondsGroup.style.display = "block";
+    restBeatsGroup.style.display = "none";
+    restTitle.textContent = "Add REST (seconds)";
+  }
+});
 
 function hideRest() {
   restModal.classList.add("hidden");
@@ -730,17 +821,7 @@ function hideRest() {
   insertAtCursor(``);
 }
 
-function confirmRest() {
-  const val = parseFloat(restInput.value);
-  if (!isNaN(val) && val >= 0) {
-    insertAtCursor(`\n::[rest=${val}]\n`);
-    hideRest();
-  } else {
-    alert("Rest duration cannot be nothing or less than nothing poopy\n")
-  }
-}
-
-restInput.addEventListener("keydown", (e) => {
+restModal.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     e.preventDefault();
     confirmRest();
