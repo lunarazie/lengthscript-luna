@@ -392,7 +392,7 @@ body.rest-overflow .rest {
   <br>
   <br>
   <br>
-  <b><a href="https://lunarazie.carrd.co" target="_blank" style="color: var(--text);">lunarazie</a>'s Script Timing Editor v1.11</b>
+  <b><a href="https://lunarazie.carrd.co" target="_blank" style="color: var(--text);">lunarazie</a>'s Script Timing Editor v1.12</b>
 </div>
 
 <!-- SCROLL PROGRESS -->
@@ -401,7 +401,7 @@ body.rest-overflow .rest {
 </div>
 
 <!-- WPM Modal -->
-<div id="wpmModal" class="modal hidden">
+<div id="wpmModal" class="modal hidden" tabindex="-1">
   <div class="modal-box">
     <h2>Set WPM</h2>
     <input type="number" id="wpmInput" min="1" value="160" style="text-align: center; font-family: var(--editor-font); width: 33.33333%";>
@@ -469,7 +469,7 @@ body.rest-overflow .rest {
     You can <b>IMPORT</b> any text file, and it'll calculate the reading time (from the initial WPM).<br>
     You can also <b>EXPORT</b> the file as a .txt or its <b>CALC logs</b> to see its calculating process, either as a .txt or .csv file.<br>
       <p style="text-align: center; font-size: 80%; margin-top: 8px;">
-        v1.11 - this site is made by lunarazie.<br>
+        v1.12 - this site is made by lunarazie.<br>
         this is not a school project, but a personal one. free to use.<br>
         *This is only just an approximation using simple calculations. Actual length of your script will vary in real speech.<br><br>
         <a href="https://lunarazie.carrd.co" target="_blank" style="color: var(--text);">my carrd</a>
@@ -714,9 +714,9 @@ const wpmInput = document.getElementById("wpmInput");
 const restInput = document.getElementById("restInput");
 
 function insertWPM() {
-  wpmInput.value = defaultWPM; // prefill
+  wpmInput.value = defaultWPM;
   wpmModal.classList.remove("hidden");
-  document.getElementById("modalBackdrop").style.display = "block";
+  modalBackdrop.style.display = "block";
   wpmInput.focus();
 }
 
@@ -748,12 +748,24 @@ wpmInput.addEventListener("keydown", (e) => {
   }
 });
 
+wpmModal.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    confirmWPM();
+  }
+
+  if (e.key === "Escape") {
+    e.preventDefault();
+    hideWPM();
+  }
+});
+
 // REST
 function insertRest() {
-  restInput.value = 0.5; // default
+  restInput.value = 0.5;
   restModal.classList.remove("hidden");
-  document.getElementById("modalBackdrop").style.display = "block";
-  restModal.focus();
+  modalBackdrop.style.display = "block";
+  restInput.focus(); // 🔴 IMPORTANT
 }
 
 function confirmRest() {
@@ -822,6 +834,18 @@ function hideRest() {
 }
 
 restModal.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    confirmRest();
+  }
+
+  if (e.key === "Escape") {
+    e.preventDefault();
+    hideRest();
+  }
+});
+
+restInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     e.preventDefault();
     confirmRest();
