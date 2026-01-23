@@ -392,7 +392,7 @@ body.rest-overflow .rest {
   <br>
   <br>
   <br>
-  <b><a href="https://lunarazie.carrd.co" target="_blank" style="color: var(--text);">lunarazie</a>'s Script Timing Editor v1.121</b>
+  <b><a href="https://lunarazie.carrd.co" target="_blank" style="color: var(--text);">lunarazie</a>'s Script Timing Editor v1.13</b>
 </div>
 
 <!-- SCROLL PROGRESS -->
@@ -469,7 +469,7 @@ body.rest-overflow .rest {
     You can <b>IMPORT</b> any text file, and it'll calculate the reading time (from the initial WPM).<br>
     You can also <b>EXPORT</b> the file as a .txt or its <b>CALC logs</b> to see its calculating process, either as a .txt or .csv file.<br>
       <p style="text-align: center; font-size: 80%; margin-top: 8px;">
-        v1.121 - this site is made by lunarazie.<br>
+        v1.13 - this site is made by lunarazie.<br>
         this is not a school project, but a personal one. free to use.<br>
         *This is only just an approximation using simple calculations. Actual length of your script will vary in real speech.<br><br>
         <a href="https://lunarazie.carrd.co" target="_blank" style="color: var(--text);">my carrd</a>
@@ -500,15 +500,19 @@ body.rest-overflow .rest {
 <div class="sidebar">
   <h1 style="text-align: center;">Document Stats</h1>
 
+  <div style="display: flex; gap: 8px; align-items: center;">
+    <strong>File Name:</strong>
+    <input id="filename" type="text" placeholder="Untitled.txt">
+  </div>
   <div style="display: flex; gap: 8px;">
     <strong>Length:</strong>
     <div id="time">0:00.000</div>
-    <div id="timerest", style="font-size: 80%; color: #7c82ff">(0.000s)</div>
+    <div id="timerest" style="font-size: 80%; color: #7c82ff">(0.000s)</div>
   </div>
   <div style="display: flex; gap: 8px;">
     <strong>Words:</strong>
     <div id="words">0</div>
-    <div id="skippedWords", style="font-size: 80%; color: #4ea4f5">(0 skipped)</div>
+    <div id="skippedWords" style="font-size: 80%; color: #4ea4f5">(0 skipped)</div>
   </div>
   <div style="display: flex; gap: 8px;">
     <strong>Characters:</strong>
@@ -600,6 +604,7 @@ body.rest-overflow .rest {
 <div id="modalBackdrop"></div>
 
 <script>
+
 //oh shit fUCK
 // STATS AND SETTINGS DECLARATION
 const editor = document.getElementById("editor");
@@ -610,6 +615,9 @@ const charsDisplay = document.getElementById("chars");
 let defaultWPM = 160;
 let forceDark = false;
 const REST_LIMIT = 2147483648;
+
+let currentFilename = "Untitled.txt";
+const filenameInput = document.getElementById("filename");
 
 // Update Highlight ?!?!?
 let highlightScheduled = false;
@@ -760,7 +768,7 @@ function insertRest() {
   restInput.value = 0.5;
   restModal.classList.remove("hidden");
   modalBackdrop.style.display = "block";
-  restInput.focus(); // 🔴 IMPORTANT
+  restInput.focus();
 }
 
 function confirmRest() {
@@ -1183,6 +1191,15 @@ editor.addEventListener("input", () => {
 window.addEventListener("load", () => {
   const savedText = localStorage.getItem("scriptContent");
   const settings = JSON.parse(localStorage.getItem("editorSettings") || "{}");
+  const savedName = localStorage.getItem("scriptFilename");
+
+  // save
+  if (savedName) {
+    currentFilename = savedName;
+    filenameInput.value = currentFilename;
+  } else {
+    filenameInput.value = currentFilename;
+  }
 
   if (savedText) editor.value = savedText;
 
@@ -1317,6 +1334,8 @@ function importFile(){
       editor.value = reader.result;
       updateFuckingEverything();
       localStorage.setItem("scriptContent", editor.value);
+      currentFilename = file.name;
+      filenameInput.value = currentFilename;
     };
     reader.readAsText(file);
   };
@@ -1344,6 +1363,29 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
+// FILE NAME
+filenameInput.addEventListener("input", () => {
+  currentFilename = filenameInput.value.trim() || "Untitled.txt";
+  saveFilename();
+});
+
+function saveFilename() {
+  localStorage.setItem("scriptFilename", currentFilename);
+}
+
+function getExportFilename(ext) {
+  const input = document.getElementById("filename");
+  let name = input.value.trim() || "script";
+
+  // remove illegal characters
+  name = name.replace(/[<>:"/\\|?*\x00-\x1F]/g, "");
+
+  if (!name.toLowerCase().endsWith(ext)) {
+    name += ext;
+  }
+  return name;
+}
+
 function download(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -1356,7 +1398,7 @@ function download(blob, filename) {
 // TEXT
 function exportPlainText() {
   const blob = new Blob([editor.value], { type: "text/plain" });
-  download(blob, "script.txt");
+  download(blob, getExportFilename(".txt"));
 }
 
 // TEXT no MARKERS
@@ -1377,7 +1419,7 @@ function saveScriptWithoutMarkers() {
 
   const a = document.createElement("a");
   a.href = url;
-  a.download = "script-no-markers.txt";
+  a.download = getExportFilename("-no-markers.txt");
   a.click();
 
   URL.revokeObjectURL(url);
@@ -1392,7 +1434,7 @@ function exportCalcTXT() {
     `\n\nTotal words: ${wordsDisplay.textContent}\n` +
     formatTime(totalSeconds);
 
-  download(new Blob([output], { type: "text/plain" }), "script-calculation.txt");
+  download(new Blob([output], { type: "text/plain" }),getExportFilename("-calculation.txt"));
 }
 
 /// CSV
@@ -1418,70 +1460,6 @@ function exportCalcTXT() {
   //  marker = 3.0 -> SKIP END
   //   value = 0
   // value-2 = 0
-
-function exportCalcCSV() {
-  const lines = editor.value.split("\n");
-  let currentWPM = defaultWPM;
-  let inSkip = false;
-
-  const rows = [];
-
-  // Initial WPM
-  const msPerWordInit = 60000 / defaultWPM;
-  rows.push(`0,1,${msPerWordInit.toFixed(10)},0`);
-
-  lines.forEach((rawLine, index) => {
-    const lineNo = index + 1;
-    const line = rawLine.trim();
-
-    // --- SKIP START ---
-    if (/^::\[skip\s*=\s*start\]/i.test(line)) {
-      inSkip = true;
-      rows.push(`${lineNo},3.1,0,0`);
-      return;
-    }
-
-    // --- SKIP FINISH ---
-    if (/^::\[skip\s*=\s*finish\]/i.test(line)) {
-      inSkip = false;
-      rows.push(`${lineNo},3.0,0,0`);
-      return;
-    }
-
-    // --- WPM ---
-    const wpmMatch = line.match(/^::\[wpm\s*=\s*([\d.]+)\]/i);
-    if (wpmMatch) {
-      currentWPM = parseFloat(wpmMatch[1]);
-      const msPerWord = 60000 / currentWPM;
-      rows.push(`${lineNo},1,${msPerWord.toFixed(10)},0`);
-      return;
-    }
-
-    // --- REST ---
-    const restMatch = line.match(/^::\[rest\s*=\s*([\d.]+)\]/i);
-    if (restMatch) {
-      const rest = parseFloat(restMatch[1]);
-      rows.push(`${lineNo},2,${rest.toFixed(3)},0`);
-      return;
-    }
-
-    // --- WORDS ---
-    const words = line.split(/\s+/).filter(Boolean).length;
-
-    if (inSkip) {
-      // skipped text → zero seconds
-      rows.push(`${lineNo},0,${words},0`);
-    } else {
-      const seconds = (words / currentWPM) * 60;
-      rows.push(`${lineNo},0,${words},${seconds.toFixed(10)}`);
-    }
-  });
-
-  download(
-    new Blob([rows.join("\n")], { type: "text/csv" }),
-    "script-calculation.csv"
-  );
-}
 
 // --- CSV EXPORT WITH SKIP SUPPORT ---
 function exportCalcCSV() {
@@ -1540,10 +1518,7 @@ function exportCalcCSV() {
     }
   });
 
-  download(
-    new Blob([rows.join("\n")], { type: "text/csv" }),
-    "script-calculation.csv"
-  );
+  download(new Blob([rows.join("\n")], { type: "text/csv" }), getExportFilename("-calculation.txt"));
 }
 
 // --- TXT CALC LOG WITH SKIP SUPPORT ---
@@ -1617,7 +1592,7 @@ function exportCalculation() {
   const blob = new Blob([output], { type: "text/plain" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = "script-calculation.txt";
+  a.download = getExportFilename(".txt");
   a.click();
   URL.revokeObjectURL(a.href);
 }
@@ -1861,6 +1836,9 @@ editor.addEventListener("keydown", (e) => {
     insertSkip();
   }
 });
+/*
+stupid sutpid [saodjasdas;dasd'ada'sdasdas
+*/
 </script>
 </body>
 </html>
