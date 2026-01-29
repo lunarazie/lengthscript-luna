@@ -392,7 +392,7 @@ body.rest-overflow .rest {
   <br>
   <br>
   <br>
-  <b><a href="https://lunarazie.carrd.co" target="_blank" style="color: var(--text);">lunarazie</a>'s Script Timing Editor v1.131</b>
+  <b><a href="https://lunarazie.carrd.co" target="_blank" style="color: var(--text);">lunarazie</a>'s Script Timing Editor v1.132</b>
 </div>
 
 <!-- SCROLL PROGRESS -->
@@ -469,7 +469,7 @@ body.rest-overflow .rest {
     You can <b>IMPORT</b> any text file, and it'll calculate the reading time (from the initial WPM).<br>
     You can also <b>EXPORT</b> the file as a .txt or its <b>CALC logs</b> to see its calculating process, either as a .txt or .csv file.<br>
       <p style="text-align: center; font-size: 80%; margin-top: 8px;">
-        v1.131 - this site is made by lunarazie.<br>
+        v1.132 - this site is made by lunarazie.<br>
         this is not a school project, but a personal one. free to use.<br>
         *This is only just an approximation using simple calculations. Actual length of your script will vary in real speech.<br><br>
         <a href="https://lunarazie.carrd.co" target="_blank" style="color: var(--text);">my carrd</a>
@@ -731,7 +731,7 @@ function insertWPM() {
 function hideWPM() {
   wpmModal.classList.add("hidden");
   document.getElementById("modalBackdrop").style.display = "none";
-  insertAtCursor(``);
+  editor.focus();
 }
 
 function confirmWPM() {
@@ -833,7 +833,7 @@ restAdvanced.addEventListener("change", () => {
 function hideRest() {
   restModal.classList.add("hidden");
   document.getElementById("modalBackdrop").style.display = "none";
-  insertAtCursor(``);
+  editor.focus();
 }
 
 restModal.addEventListener("keydown", (e) => {
