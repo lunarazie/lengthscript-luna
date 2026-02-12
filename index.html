@@ -392,7 +392,7 @@ body.rest-overflow .rest {
   <br>
   <br>
   <br>
-  <b><a href="https://lunarazie.carrd.co" target="_blank" style="color: var(--text);">lunarazie</a>'s Script Timing Editor v1.132</b>
+  <b><a href="https://lunarazie.carrd.co" target="_blank" style="color: var(--text);">lunarazie</a>'s Script Timing Editor v1.133</b>
 </div>
 
 <!-- SCROLL PROGRESS -->
@@ -469,7 +469,7 @@ body.rest-overflow .rest {
     You can <b>IMPORT</b> any text file, and it'll calculate the reading time (from the initial WPM).<br>
     You can also <b>EXPORT</b> the file as a .txt or its <b>CALC logs</b> to see its calculating process, either as a .txt or .csv file.<br>
       <p style="text-align: center; font-size: 80%; margin-top: 8px;">
-        v1.132 - this site is made by lunarazie.<br>
+        v1.133 - this site is made by lunarazie.<br>
         this is not a school project, but a personal one. free to use.<br>
         *This is only just an approximation using simple calculations. Actual length of your script will vary in real speech.<br><br>
         <a href="https://lunarazie.carrd.co" target="_blank" style="color: var(--text);">my carrd</a>
@@ -702,7 +702,7 @@ function hideHelp() {
   document.getElementById("modalBackdrop").style.display = "none";
 }
 
-/* ---------- Insert ---------- */
+// INSERT
 function insertAtCursor(text) {
   const start = editor.selectionStart;
   const end = editor.selectionEnd;
@@ -870,7 +870,7 @@ function insertSkip() {
   insertAtCursor(`\n::[skip=${inSkip ? "finish" : "start"}]\n`);
 }
 
-/* ---------- Stats ---------- */
+// STATS
 const MARKER_REGEX = /::\[\s*(wpm|rest|skip)\s*=\s*[^\]\n]*\]/gi; //fucker
 
 // CALCULATE TIME
@@ -888,12 +888,12 @@ function calculateTime(text) {
     // --- SKIP MARKERS ---
     if (/^::\[skip\s*=\s*start\]/i.test(line)) {
       inSkip = true;
-      continue; // skip this line
+      continue;
     }
 
     if (/^::\[skip\s*=\s*finish\]/i.test(line)) {
       inSkip = false;
-      continue; // skip this line
+      continue;
     }
 
     // --- WPM MARKERS ---
@@ -910,13 +910,11 @@ function calculateTime(text) {
     if (restMatch) {
       const rest = parseFloat(restMatch[1]);
       if (isFinite(rest) && rest > 0) totalSeconds += rest;
-      continue; // skip marker line
+      continue;
     }
 
-    // --- SKIPPED LINES ---
-    if (inSkip) continue; // do NOT add skipped lines to timer
+    if (inSkip) continue;
 
-    // --- IGNORE empty lines ---
     if (!line) continue;
 
     // --- WORDS ---
@@ -1095,7 +1093,7 @@ function getSkipRanges(lines) {
   return ranges;
 }
 
-/* ---------- Settings ---------- */
+// SETTINGS
 const defaultWPMInput = document.getElementById("defaultWPMInput");
 const forceDarkInput = document.getElementById("forceDarkInput");
 
@@ -1175,13 +1173,13 @@ function applySettings(){
   else document.body.classList.remove("dark");
 }
 
-/* ---------- Theme ---------- */
+// THEME
 function toggleTheme(){
   forceDark = !forceDark;
   applySettings();
 }
 
-/* ---------- Autosave & load ---------- */
+// AUTOSAVE AND LOAD
 editor.addEventListener("input", () => {
   scheduleFastUpdates();
   scheduleSlowUpdates();
@@ -1236,7 +1234,7 @@ function scheduleSlowUpdates() {
 }
 
 function runSlowUpdates() {
-  reTime();                // time, rest, skipped
+  reTime();
   updateMarkerCounts();
   updateChars();
   updateWords();
@@ -1244,8 +1242,7 @@ function runSlowUpdates() {
   updateLineNumbers();
 }
 
-/* --------- Line Numbers ----------- */
-
+// LINE NUMBERS (heavily unoptimized)
 const linesEl = document.getElementById("lines");
 
 function updateLineNumbers() {
@@ -1264,7 +1261,6 @@ function updateLineNumbers() {
       return;
     }
 
-    // create a temporary div to measure visual height
     const div = document.createElement("div");
     div.style.position = "absolute";
     div.style.visibility = "hidden";
@@ -1278,7 +1274,6 @@ function updateLineNumbers() {
     const visualLines = Math.ceil(div.offsetHeight / lineHeight);
     document.body.removeChild(div);
 
-    // Add the line number once, then blank lines for wrapped lines
     html += (i + 1) + "<br>";
     for (let j = 1; j < visualLines; j++) html += "<br>";
   });
@@ -1301,7 +1296,6 @@ function renderLineNumbers(text) {
   ).join("\n");
 }
 
-// editor style cache
 let editorStyleCache = null;
 
 function refreshEditorStyleCache() {
@@ -1321,7 +1315,7 @@ function syncScroll() {
   linesEl.scrollTop = editor.scrollTop;
 }
 
-/* ---------- Import ---------- */
+// IMPORT
 function importFile(){
   const input = document.createElement("input");
   input.type="file";
@@ -1342,7 +1336,7 @@ function importFile(){
   input.click();
 }
 
-/* ---------- NEW EXPORT ------------- */
+// NEW EXPOTR
 function showExport() {
   document.getElementById("exportModal").classList.remove("hidden");
   document.getElementById("modalBackdrop").style.display = "block";
@@ -1406,12 +1400,9 @@ function saveScriptWithoutMarkers() {
   const lines = editor.value.split(/\r?\n/);
 
   const cleaned = lines.map(line => {
-    // Remove any marker anywhere in the line
-    // This regex handles = and optional spaces around = and value
     return line.replace(/::\[\s*(wpm|rest|skip)\s*=\s*.*?\]/gi, '').trimEnd();
   });
 
-  // Join lines back with \n so the number of lines stays the same
   const output = cleaned.join('\n');
 
   const blob = new Blob([output], { type: "text/plain" });
@@ -1437,31 +1428,7 @@ function exportCalcTXT() {
   download(new Blob([output], { type: "text/plain" }),getExportFilename("-calculation.txt"));
 }
 
-/// CSV
-
-  // rows.push("line,marker,value,value2");
-
-  //  marker = 0   -> WORDS
-  //   value = #words
-  // value-2 = seconds.000 / 0 (if SKIP)
-
-  //  marker = 1   -> WPM
-  //   value = msPerWord.0000000000
-  // value-2 = 0
-
-  //  marker = 2   -> REST
-  //   value = rest.000
-  // value-2 = 0
-
-  //  marker = 3.1 -> SKIP START
-  //   value = 0
-  // value-2 = 0
-
-  //  marker = 3.0 -> SKIP END
-  //   value = 0
-  // value-2 = 0
-
-// --- CSV EXPORT WITH SKIP SUPPORT ---
+// EXPORT CSV
 function exportCalcCSV() {
   const lines = editor.value.split("\n");
   let currentWPM = defaultWPM;
@@ -1697,7 +1664,7 @@ letterSpacingInput.addEventListener("input", () => {
 });
 
 // RELOAD
-window.addEventListener("load", () => { // executes, debug message showed up
+window.addEventListener("load", () => {
 
   // Restore editor content
   const savedScript = localStorage.getItem("scriptContent");
@@ -1740,11 +1707,11 @@ window.addEventListener("load", () => { // executes, debug message showed up
   updateFuckingEverything();
 });
 
-// Custom Font Upload (i think this works)
+// Custom Font Upload
 const DB_NAME = "FontStorage";
 const STORE_NAME = "fonts";
 
-function openDB() { // executes, debug message showed up
+function openDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, 1);
 
@@ -1757,13 +1724,13 @@ function openDB() { // executes, debug message showed up
   });
 }
 
-async function saveFontToDB(name, buffer) { // may get executed, debug message showed up
+async function saveFontToDB(name, buffer) {
   const db = await openDB();
   const tx = db.transaction(STORE_NAME, "readwrite");
   tx.objectStore(STORE_NAME).put(buffer, name);
 }
 
-async function loadFontFromDB(name) { // may get executed, debug message showed up
+async function loadFontFromDB(name) {
   const db = await openDB();
   const tx = db.transaction(STORE_NAME, "readonly");
   return new Promise(resolve => {
@@ -1772,7 +1739,7 @@ async function loadFontFromDB(name) { // may get executed, debug message showed 
   });
 }
 
-fontUpload.addEventListener("change", async () => { // may get executed, debug message showed up
+fontUpload.addEventListener("change", async () => {
   const file = fontUpload.files[0];
   if (!file) return;
 
@@ -1783,7 +1750,7 @@ fontUpload.addEventListener("change", async () => { // may get executed, debug m
   setFont('"UserCustomFont", monospace', "custom");
 });
 
-function registerFont(buffer) { // executes, debug message showed up
+function registerFont(buffer) {
   const blob = new Blob([buffer], { type: "font/ttf" });
   const url = URL.createObjectURL(blob);
 
@@ -1797,8 +1764,7 @@ function registerFont(buffer) { // executes, debug message showed up
   document.head.appendChild(style);
 }
 
-/* ------------ VISUAL PROBLEMS FIXES ------------ */
-// sync overlay size
+// visual problems
 function syncOverlaySize() {
   const style = getComputedStyle(editor);
 
@@ -1812,24 +1778,20 @@ syncOverlaySize();
 window.addEventListener("resize", syncOverlaySize);
 editor.addEventListener("input", syncOverlaySize);
 
-/* -------- Key Combos -------- */
-// ADD WPM OR REST MARKER
+// KEY COMBOS
 editor.addEventListener("keydown", (e) => {
-  // Ctrl + Enter → WPM
   if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
     e.preventDefault();
     insertWPM();
   }
 
-  // Alt + Enter → REST
   if (e.altKey && e.key === "Enter") {
-    e.preventDefault(); // stop newline
+    e.preventDefault();
     insertRest();
     return;
   }
 });
 
-// SHIFT + ENTER → TOGGLE SKIP MARKER
 editor.addEventListener("keydown", (e) => {
   if (e.shiftKey && e.key === "Enter") {
     e.preventDefault();
